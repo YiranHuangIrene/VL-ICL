@@ -4,6 +4,7 @@ import json
 import argparse
 import gc
 from utils import model_inference, utils, ICL_utils, load_models
+from tqdm import tqdm
 
 
 def parse_args():
@@ -14,7 +15,7 @@ def parse_args():
                                                                              'clevr','operator_induction_interleaved', 'matching_mi',])
     parser.add_argument("--engine", "-e", choices=["openflamingo", "otter-llama", "llava16-7b", "qwen-vl", "qwen-vl-chat", 'internlm-x2', 
                                                    'emu2-chat', 'idefics-9b-instruct', 'idefics-80b-instruct', 'gpt4v', 'llava-onevision-7b',
-                                                   'llava-onevision-0.5b'],
+                                                   'llava-onevision-0.5b','phi-3.5-visionn'],
                         default=["llava16-7b"], nargs="+")
     parser.add_argument('--n_shot', default=[0, 1, 2, 4, 8], nargs="+", help='Number of support images.')
 
@@ -30,7 +31,7 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
     results = []
     max_new_tokens = args.max_new_tokens
 
-    for query in query_meta:
+    for query in tqdm(query_meta):
         
         n_shot_support = ICL_utils.select_demonstration(support_meta, n_shot, args.dataset, query=query)
 

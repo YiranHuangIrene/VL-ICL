@@ -44,6 +44,18 @@ def load_i2t_model(engine, args=None):
         model = transformers.AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL", device_map="cuda", trust_remote_code=True).eval()
         model.generation_config = GenerationConfig.from_pretrained("Qwen/Qwen-VL", trust_remote_code=True)
         processor = None
+    elif engine == 'qwen2.5-vl-7B':
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+        from qwen_vl_utils import process_vision_info
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        "Qwen/Qwen2.5-VL-7B-Instruct",
+        torch_dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+        device_map="auto",
+    )
+        processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+        tokenizer = None
+    
     elif engine == 'internlm-x2':
         model = transformers.AutoModel.from_pretrained('internlm/internlm-xcomposer2-7b', trust_remote_code=True, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, device_map="cuda")
         tokenizer = transformers.AutoTokenizer.from_pretrained('internlm/internlm-xcomposer2-7b', trust_remote_code=True)
@@ -59,7 +71,12 @@ def load_i2t_model(engine, args=None):
             cross_attn_every_n_layers=4,
         )
         model = model.to(torch.bfloat16).cuda()
-
+    elif engine == 'phi-3.5-vision':
+        from transformers import AutoModelForCausalLM
+        model = AutoModelForCausalLM.from_pretrained("microsoft/Phi-3.5-vision-instruct", trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, _attn_implementation='flash_attention_2')
+        processor = AutoProcessor.from_pretrained("microsoft/Phi-3.5-vision-instruct", trust_remote_code=True) 
+        tokenizer = processor.tokenizer
+        
     elif engine == 'emu2-chat':
         from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
         tokenizer = transformers.AutoTokenizer.from_pretrained("BAAI/Emu2-Chat")

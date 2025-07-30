@@ -274,7 +274,40 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
                 print("pausing")
                 time.sleep(1)
                 continue
-
+    elif 'phi-3.5-vision' in engine:
+        images = []
+        image_placeholders = ""
+        full_text_prompt = f"{task_instruction}\n"
+        img_idx = 1
+        for shot in n_shot_support:
+            for image_path in shot['image']:
+                images.append(Image.open(os.path.join(data_path, image_path)).convert("RGB"))
+                image_placeholders += f"<|image_{img_idx}|>\n"
+                full_text_prompt += image_placeholders
+                img_idx += 1
+            full_text_prompt += f"{shot['question']}\nAnswer: {format_answer(shot['answer'], dataset, query)}\n"
+        for query_image in query_images:
+            images.append(query_image)
+            image_placeholders += f"<|image_{img_idx}|>\n"
+            full_text_prompt += image_placeholders
+            img_idx += 1
+        full_text_prompt += f"{query_text}\nAnswer:"
+        messages = [{'role': 'user', 'content': full_text_prompt}]
+        prompt = processor.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
+        inputs = processor(prompt, images, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            generated_ids = model.generate(
+                **inputs,
+                eos_token_id=processor.tokenizer.eos_token_id,
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+            )
+        generate_ids = generate_ids[:, inputs['input_ids'].shape[1]:]
+        predicted_answers = processor.batch_decode(
+            generate_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )[0]
     return predicted_answers
 
 def ICL_T2I_inference(args, engine, model, tokenizer, query, n_shot_support, data_path, processor, max_new_tokens):
