@@ -282,18 +282,18 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
         for shot in n_shot_support:
             for image_path in shot['image']:
                 images.append(Image.open(os.path.join(data_path, image_path)).convert("RGB"))
-                image_placeholders += f"<|image_{img_idx}|>\n"
+                image_placeholders = f"<|image_{img_idx}|>\n"
                 full_text_prompt += image_placeholders
                 img_idx += 1
             full_text_prompt += f"{shot['question']}\nAnswer: {format_answer(shot['answer'], dataset, query)}\n"
         for query_image in query_images:
             images.append(query_image)
-            image_placeholders += f"<|image_{img_idx}|>\n"
+            image_placeholders = f"<|image_{img_idx}|>\n"
             full_text_prompt += image_placeholders
             img_idx += 1
         full_text_prompt += f"{query_text}\nAnswer:"
         messages = [{'role': 'user', 'content': full_text_prompt}]
-        prompt = processor.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
+        prompt =  processor.tokenizer.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
         inputs = processor(prompt, images, return_tensors="pt").to(model.device)
         with torch.no_grad():
             generated_ids = model.generate(
@@ -302,9 +302,62 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
             )
-        generate_ids = generate_ids[:, inputs['input_ids'].shape[1]:]
+        generated_ids = generated_ids[:, inputs['input_ids'].shape[1]:]
         predicted_answers = processor.batch_decode(
-            generate_ids,
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )[0]
+    return predicted_answers
+
+
+def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query, 
+                      n_shot_support, data_path, processor, max_new_tokens):
+    task_instruction = get_task_instruction(args)
+    img_id = query['image']
+    query_images, query_image_paths = load_image(img_id, data_path)
+    query_text = query['question']
+    if 'qwen-vl' in engine:
+        inputs = [{'text': f'You are a helpful assistant. {task_instruction}'}]
+        for i in range(len(n_shot_support)):
+            inputs.append({'text': 'User: ' + n_shot_support[i]['question'] + 
+                            '\nAssistant: ' + format_answer(n_shot_support[i]['answer'], dataset, query) + '\n'})
+        for query_image_path in query_image_paths:
+            inputs.append({'image': query_image_path})
+        inputs.append({'text': 'User: ' + query_text + '\nAssistant:'})
+        
+        total_inputs = tokenizer.from_list_format(inputs)
+        inputs = tokenizer(total_inputs, return_tensors='pt')
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        input_token_len = inputs['input_ids'].shape[1]
+        predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif 'phi-3.5-vision' in engine:
+        images = []
+        img_idx = 1
+        full_text_prompt = f"{task_instruction}\n"
+        for shot in n_shot_support:
+            full_text_prompt += f"{shot['question']}\nAnswer: {format_answer(shot['answer'], dataset, query)}\n"
+        for query_image in query_images:
+            images.append(query_image)
+            image_placeholders = f"<|image_{img_idx}|>\n"
+            full_text_prompt += image_placeholders
+            img_idx += 1
+        full_text_prompt += f"{query_text}\nAnswer:"
+        messages = [{'role': 'user', 'content': full_text_prompt}]
+        prompt =  processor.tokenizer.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
+        inputs = processor(prompt, images, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            generated_ids = model.generate(
+                **inputs,
+                eos_token_id=processor.tokenizer.eos_token_id,
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+            )
+        generated_ids = generated_ids[:, inputs['input_ids'].shape[1]:]
+        predicted_answers = processor.batch_decode(
+            generated_ids,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False
         )[0]

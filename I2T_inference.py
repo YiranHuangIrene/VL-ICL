@@ -15,13 +15,13 @@ def parse_args():
                                                                              'clevr','operator_induction_interleaved', 'matching_mi',])
     parser.add_argument("--engine", "-e", choices=["openflamingo", "otter-llama", "llava16-7b", "qwen-vl", "qwen-vl-chat", 'internlm-x2', 
                                                    'emu2-chat', 'idefics-9b-instruct', 'idefics-80b-instruct', 'gpt4v', 'llava-onevision-7b',
-                                                   'llava-onevision-0.5b','phi-3.5-visionn'],
+                                                   'llava-onevision-0.5b','phi-3.5-vision'],
                         default=["llava16-7b"], nargs="+")
     parser.add_argument('--n_shot', default=[0, 1, 2, 4, 8], nargs="+", help='Number of support images.')
 
     parser.add_argument('--max-new-tokens', default=15, type=int, help='Max new tokens for generation.')
     parser.add_argument('--task_description', default='nothing', type=str, choices=['nothing', 'concise', 'detailed'], help='Detailed level of task description.')
-
+    parser.add_argument('--wo_img', action='store_true', help='whether to use images in the prompt.')
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
     return parser.parse_args()
 
@@ -35,7 +35,11 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
         
         n_shot_support = ICL_utils.select_demonstration(support_meta, n_shot, args.dataset, query=query)
 
-        predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
+        if args.wo_img:
+            predicted_answer = model_inference.ICL_I2T_inference_wo_img(args, engine, args.dataset, model, tokenizer, query, 
+                                                                      n_shot_support, data_path, processor, max_new_tokens)
+        else:
+            predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
                                                       n_shot_support, data_path, processor, max_new_tokens)
         query['prediction'] = predicted_answer
         results.append(query)
