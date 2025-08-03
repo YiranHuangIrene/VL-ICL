@@ -361,6 +361,44 @@ def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False
         )[0]
+    elif 'llava' in engine:
+        from llava.conversation import conv_templates
+        from llava.mm_utils import (
+            process_images,
+            tokenizer_image_token,
+        )
+        from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
+        images = []
+        input_text = f"{task_instruction}\n"
+        for i in range(len(n_shot_support)):
+            input_text += f"{n_shot_support[i]['question']}\nAnswer: {format_answer(n_shot_support[i]['answer'], dataset, query)}\n"
+        
+        for query_image in query_images:
+            images.append(query_image)
+            input_text += f"{DEFAULT_IMAGE_TOKEN}\n"
+        input_text += f"{query_text}\nAnswer:"
+        image_tensor = torch.stack(
+                [
+                    processor.preprocess(image_file, return_tensors="pt")["pixel_values"][0]
+                    for image_file in images
+                ]
+            )
+        image_tensor = image_tensor.half().cuda()
+        conv_mode = 'llava_v1' if 'onevision' not in engine else 'qwen_1_5'
+        conv = conv_templates[conv_mode].copy()
+        conv.append_message(conv.roles[0], input_text)
+        conv.append_message(conv.roles[1], None)
+        prompt = conv.get_prompt()
+        input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
+        with torch.inference_mode():
+            generated_ids = model.generate(
+                input_ids,
+                images=image_tensor,
+                do_sample=False,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=1,
+                )
+        predicted_answers = tokenizer.batch_decode(generated_ids[:, :], skip_special_tokens=True)[0]
     return predicted_answers
 
 def ICL_T2I_inference(args, engine, model, tokenizer, query, n_shot_support, data_path, processor, max_new_tokens):

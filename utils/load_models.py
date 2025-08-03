@@ -1,10 +1,10 @@
 import transformers
 import os
 import torch
-
+import getpass
 
 def load_i2t_model(engine, args=None):
-    if os.getlogin() == 'aoq609':
+    if getpass.getuser() == 'aoq609':
         attn_implementation = 'eager'
     else:
         attn_implementation = 'flash_attention_2'
@@ -25,15 +25,27 @@ def load_i2t_model(engine, args=None):
         tokenizer, model, image_processor, context_len = load_llava_model(model_path='liuhaotian/llava-v1.6-vicuna-7b', model_base=None, model_name='llava',
                                                                           device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
-    elif engine == 'llava16-13b':
-        pass
+    elif 'llava16-13b' in engine:
+        import sys
+        vl_icl_path = os.path.abspath(os.path.join(__file__, '..', '..'))
+        repo_root = os.path.dirname(vl_icl_path)
+        llava_path = os.path.join(repo_root, 'LLaVA')
+        llava_icl_path = os.path.join(repo_root, 'LLAVA-ICL')
+        llava_icl_ckpt_path = os.path.join(llava_icl_path, 'icl-llava-pad')
+        sys.path.append(llava_path)
+        sys.path.append(llava_icl_path)
+        from llava.model.builder import load_pretrained_model as load_llava_model
+        model_id = 'liuhaotian/llava-v1.6-vicuna-13b' if 'icl' not in engine else llava_icl_ckpt_path
+        tokenizer, model, image_processor, context_len = load_llava_model(model_path=model_id, model_base=None, model_name='llava',
+                                                                        device_map="auto", torch_dtype=torch.bfloat16)
+        processor = image_processor
     elif 'llava-onevision-0.5b' in engine:
         from llava.model.builder import load_pretrained_model as load_llava_model
         tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-0.5b-ov', model_base=None, attn_implementation=attn_implementation,
                                                                           model_name='llava_qwen', device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
     elif 'llava-onevision-7b' in engine:
-        from llava.model.builder import load_pretrained_model as load_llava_model
+        from llava.model.builder import loaD_pretrained_model as load_llava_model
         tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-7b-ov', model_base=None, attn_implementation=attn_implementation,
                                                                           model_name='llava_qwen', device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
