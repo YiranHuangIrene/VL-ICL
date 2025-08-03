@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument('--n_shot', default=[0, 1, 2, 4, 8], nargs="+", help='Number of support images.')
     parser.add_argument('--wo_img', action='store_true', help='Whether to evaluate without image.')
     parser.add_argument('--wo_query_img', action='store_true', help='Whether to evaluate without query image.')
+    parser.add_argument('--contain', action='store_true', help='Whether to evaluate with contain.')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -44,6 +45,8 @@ if __name__ == "__main__":
         engine, shot = result_file.split("/")[-1].replace(".json", "").split("_")
         with open(result_file, "r") as f:
             results_dict = json.load(f)
-        
-        score = eval.eval_scores(results_dict, args.dataset)
+        if args.contain:
+            score = eval.eval_scores_contain(results_dict, args.dataset)
+        else:
+            score = eval.eval_scores(results_dict, args.dataset)
         print(f'{args.dataset} {metrics[args.dataset]} of {engine} {shot}: ', f"{score * 100.0:.2f}", flush=True)
