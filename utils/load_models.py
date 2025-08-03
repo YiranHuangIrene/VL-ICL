@@ -92,7 +92,7 @@ def load_i2t_model(engine, args=None):
     elif 'phi-3' in engine:
         from transformers import AutoModelForCausalLM, AutoProcessor
         model_id = "microsoft/Phi-3.5-vision-instruct" if engine == 'phi-3.5-vision' else "microsoft/Phi-3-vision-128k-instruct"
-        model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, _attn_implementation=attn_implementation)
+        model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16, _attn_implementation=attn_implementation)
         processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True) 
         tokenizer = processor.tokenizer
         
