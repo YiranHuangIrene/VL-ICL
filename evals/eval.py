@@ -16,6 +16,18 @@ def eval_scores(results, dataset, model=None, tokenizer=None, processor=None):
         score = llava_judge_cobsat(results, model, tokenizer, processor)
     return score
 
+def eval_scores_contain(results, dataset, model=None, tokenizer=None, processor=None):
+    if dataset in ['textocr', 'operator_induction', 'clevr', 'open_mi',
+                    'operator_induction_interleaved']:
+        score = exact_in_match(results, dataset)
+    elif dataset == 'matching_mi':
+        score = exact_yes_no(results)
+    elif dataset == 'open_t2i_mi' or dataset == 'operator_induction_t2i' or dataset == 'fast_attr_t2i' or dataset == 'fast_count_t2i':
+        score = llava_judge_t2i(results, model, tokenizer, processor, dataset)
+    elif dataset == 'cobsat':
+        score = llava_judge_cobsat(results, model, tokenizer, processor)
+    return score
+
 def exact_yes_no(results):
     acc = []
     for result in results:

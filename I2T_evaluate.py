@@ -28,12 +28,15 @@ def parse_args():
     parser.add_argument('--max-new-tokens', default=15, type=int, help='Max new tokens for generation.')
     parser.add_argument('--n_shot', default=[0, 1, 2, 4, 8], nargs="+", help='Number of support images.')
     parser.add_argument('--wo_img', action='store_true', help='Whether to evaluate without image.')
+    parser.add_argument('--wo_query_img', action='store_true', help='Whether to evaluate without query image.')
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
     if args.wo_img:
         result_files = [f"results/wo_img/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
+    elif args.wo_query_img:
+        result_files = [f"results/wo_query_img/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
     else:
         result_files = [f"results/w_img/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
 
