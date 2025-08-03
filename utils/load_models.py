@@ -4,6 +4,10 @@ import torch
 
 
 def load_i2t_model(engine, args=None):
+    if os.getlogin() == 'aoq609':
+        attn_implementation = 'eager'
+    else:
+        attn_implementation = 'flash_attention_2'
     if engine == 'otter-mpt':
         from otter_ai import OtterForConditionalGeneration
         model = OtterForConditionalGeneration.from_pretrained("luodian/OTTER-Image-MPT7B", device_map="cuda", torch_dtype=torch.bfloat16)
@@ -21,14 +25,16 @@ def load_i2t_model(engine, args=None):
         tokenizer, model, image_processor, context_len = load_llava_model(model_path='liuhaotian/llava-v1.6-vicuna-7b', model_base=None, model_name='llava',
                                                                           device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
+    elif engine == 'llava16-13b':
+        pass
     elif 'llava-onevision-0.5b' in engine:
         from llava.model.builder import load_pretrained_model as load_llava_model
-        tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-0.5b-ov', model_base=None, attn_implementation="flash_attention_2",
+        tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-0.5b-ov', model_base=None, attn_implementation=attn_implementation,
                                                                           model_name='llava_qwen', device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
     elif 'llava-onevision-7b' in engine:
         from llava.model.builder import load_pretrained_model as load_llava_model
-        tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-7b-ov', model_base=None, attn_implementation="flash_attention_2",
+        tokenizer, model, image_processor, context_len = load_llava_model(model_path='lmms-lab/llava-onevision-qwen2-7b-ov', model_base=None, attn_implementation=attn_implementation,
                                                                           model_name='llava_qwen', device_map="cuda", torch_dtype=torch.bfloat16)
         processor = image_processor
     elif engine == 'qwen-vl-chat':
@@ -50,7 +56,7 @@ def load_i2t_model(engine, args=None):
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         "Qwen/Qwen2.5-VL-7B-Instruct",
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation=attn_implementation,
         device_map="auto",
     )
         processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
@@ -71,10 +77,11 @@ def load_i2t_model(engine, args=None):
             cross_attn_every_n_layers=4,
         )
         model = model.to(torch.bfloat16).cuda()
-    elif engine == 'phi-3.5-vision':
-        from transformers import AutoModelForCausalLM
-        model = AutoModelForCausalLM.from_pretrained("microsoft/Phi-3.5-vision-instruct", trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, _attn_implementation='flash_attention_2')
-        processor = AutoProcessor.from_pretrained("microsoft/Phi-3.5-vision-instruct", trust_remote_code=True) 
+    elif 'phi-3' in engine:
+        from transformers import AutoModelForCausalLM, AutoProcessor
+        model_id = "microsoft/Phi-3.5-vision-instruct" if engine == 'phi-3.5-vision' else "microsoft/Phi-3-vision-128k-instruct"
+        model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, _attn_implementation=attn_implementation)
+        processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True) 
         tokenizer = processor.tokenizer
         
     elif engine == 'emu2-chat':

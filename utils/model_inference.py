@@ -274,7 +274,7 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
                 print("pausing")
                 time.sleep(1)
                 continue
-    elif 'phi-3.5-vision' in engine:
+    elif 'phi-3' in engine:
         images = []
         image_placeholders = ""
         full_text_prompt = f"{task_instruction}\n"
@@ -333,7 +333,7 @@ def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query,
             pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
         input_token_len = inputs['input_ids'].shape[1]
         predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
-    elif 'phi-3.5-vision' in engine:
+    elif 'phi-3' in engine:
         images = []
         img_idx = 1
         full_text_prompt = f"{task_instruction}\n"
