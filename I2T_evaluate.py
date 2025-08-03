@@ -23,17 +23,19 @@ def parse_args():
                                                                              'clevr','operator_induction_interleaved', 'matching_mi',])
     parser.add_argument("--engine", "-e", choices=["openflamingo", "otter-llama", "llava16-7b", "qwen-vl", "qwen-vl-chat", 'internlm-x2', 
                                                    'emu2-chat', 'idefics-9b-instruct', 'idefics-80b-instruct', 'gpt4v', 'llava-onevision-7b',
-                                                   'llava-onevision-0.5b'],
+                                                   'llava-onevision-0.5b', 'phi-3.5-vision'],
                         default=["llava16-7b"], nargs="+")
     parser.add_argument('--max-new-tokens', default=15, type=int, help='Max new tokens for generation.')
     parser.add_argument('--n_shot', default=[0, 1, 2, 4, 8], nargs="+", help='Number of support images.')
-
+    parser.add_argument('--wo_img', action='store_true', help='Whether to evaluate without image.')
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
-    
-    result_files = [f"results/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
+    if args.wo_img:
+        result_files = [f"results/wo_img/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
+    else:
+        result_files = [f"results/w_img/{args.dataset}/{engine}_{shot}-shot.json" for engine in args.engine for shot in args.n_shot]
 
     for result_file in result_files:
         engine, shot = result_file.split("/")[-1].replace(".json", "").split("_")

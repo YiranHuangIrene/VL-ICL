@@ -60,8 +60,13 @@ if __name__ == "__main__":
         utils.set_random_seed(args.seed)
         for shot in args.n_shot:
             results_dict = eval_questions(args, query_meta, support_meta, model, tokenizer, processor, engine, int(shot))
-            os.makedirs(f"results/{args.dataset}", exist_ok=True)
-            with open(f"results/{args.dataset}/{engine}_{shot}-shot.json", "w") as f:
+            root_dir = os.path.dirname(os.path.abspath(__file__))
+            if args.wo_img:
+                results_dir = f"{root_dir}/results/wo_img"
+            else:
+                results_dir = f"{root_dir}/results/w_img"
+            os.makedirs(f"{results_dir}/{args.dataset}", exist_ok=True)
+            with open(f"{results_dir}/{args.dataset}/{engine}_{shot}-shot.json", "w") as f:
                 json.dump(results_dict, f, indent=4)
 
         del model, tokenizer, processor
