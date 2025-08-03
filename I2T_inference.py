@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument('--max-new-tokens', default=15, type=int, help='Max new tokens for generation.')
     parser.add_argument('--task_description', default='nothing', type=str, choices=['nothing', 'concise', 'detailed'], help='Detailed level of task description.')
     parser.add_argument('--wo_img', action='store_true', help='whether to use images in the prompt.')
+    parser.add_argument('--wo_query_img', action='store_true', help='whether to use images at all in the prompt.')
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
     return parser.parse_args()
 
@@ -37,6 +38,9 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
 
         if args.wo_img:
             predicted_answer = model_inference.ICL_I2T_inference_wo_img(args, engine, args.dataset, model, tokenizer, query, 
+                                                                      n_shot_support, data_path, processor, max_new_tokens)
+        elif args.wo_query_img:
+            predicted_answer = model_inference.ICL_I2T_inference_wo_q_img(args, engine, args.dataset, model, tokenizer, query, 
                                                                       n_shot_support, data_path, processor, max_new_tokens)
         else:
             predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 

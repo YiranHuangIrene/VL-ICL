@@ -401,6 +401,74 @@ def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query,
         predicted_answers = tokenizer.batch_decode(generated_ids[:, :], skip_special_tokens=True)[0]
     return predicted_answers
 
+def ICL_I2T_inference_wo_q_img(args, engine, dataset, model, tokenizer, query, 
+                      n_shot_support, data_path, processor, max_new_tokens):
+    task_instruction = get_task_instruction(args)
+    query_text = query['question']
+    if 'qwen-vl' in engine:
+        inputs = [{'text': f'You are a helpful assistant. {task_instruction}'}]
+        for i in range(len(n_shot_support)):
+            inputs.append({'text': 'User: ' + n_shot_support[i]['question'] + 
+                            '\nAssistant: ' + format_answer(n_shot_support[i]['answer'], dataset, query) + '\n'})
+        inputs.append({'text': 'User: ' + query_text + '\nAssistant:'})
+        
+        total_inputs = tokenizer.from_list_format(inputs)
+        inputs = tokenizer(total_inputs, return_tensors='pt')
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        input_token_len = inputs['input_ids'].shape[1]
+        predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif 'phi-3' in engine:
+        full_text_prompt = f"{task_instruction}\n"
+        for shot in n_shot_support:
+            full_text_prompt += f"{shot['question']}\nAnswer: {format_answer(shot['answer'], dataset, query)}\n"
+        full_text_prompt += f"{query_text}\nAnswer:"
+        messages = [{'role': 'user', 'content': full_text_prompt}]
+        prompt =  processor.tokenizer.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
+        inputs = processor(prompt, return_tensors="pt").to(model.device)
+        with torch.no_grad():
+            generated_ids = model.generate(
+                **inputs,
+                eos_token_id=processor.tokenizer.eos_token_id,
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+            )
+        generated_ids = generated_ids[:, inputs['input_ids'].shape[1]:]
+        predicted_answers = processor.batch_decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )[0]
+    elif 'llava' in engine:
+        from llava.conversation import conv_templates
+        from llava.mm_utils import (
+            process_images,
+            tokenizer_image_token,
+        )
+        from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
+        input_text = f"{task_instruction}\n"
+        for i in range(len(n_shot_support)):
+            input_text += f"{n_shot_support[i]['question']}\nAnswer: {format_answer(n_shot_support[i]['answer'], dataset, query)}\n"
+        input_text += f"{query_text}\nAnswer:"
+        image_tensor = None
+        conv_mode = 'llava_v1' if 'onevision' not in engine else 'qwen_1_5'
+        conv = conv_templates[conv_mode].copy()
+        conv.append_message(conv.roles[0], input_text)
+        conv.append_message(conv.roles[1], None)
+        prompt = conv.get_prompt()
+        input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
+        with torch.inference_mode():
+            generated_ids = model.generate(
+                input_ids,
+                images=image_tensor,
+                do_sample=False,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=1,
+                )
+        predicted_answers = tokenizer.batch_decode(generated_ids[:, :], skip_special_tokens=True)[0]
+    return predicted_answers
+
 def ICL_T2I_inference(args, engine, model, tokenizer, query, n_shot_support, data_path, processor, max_new_tokens):
     task_instruction = get_task_instruction(args)
     query_text = query['question']
