@@ -335,7 +335,115 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
         )[0]
     return predicted_answers
 
+def ICL_I2T_inference_w_blank_img(args, engine, dataset, model, tokenizer, query, 
+                      n_shot_support, data_path, processor, max_new_tokens):
+    blank_path = os.path.join(data_path, "blank.png")
+    if not os.path.exists(blank_path):
+        Image.new("RGB", (224, 224), (255, 255, 255)).save(blank_path)
+    task_instruction = get_task_instruction(args)
+    img_id = query['image']
+    query_images, query_image_paths = load_image(img_id, data_path)
+    query_text = query['question']
+    if 'qwen-vl' in engine:
+        inputs = [{'text': f'You are a helpful assistant. {task_instruction}'}]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                inputs.append({'image': blank_path})
+            inputs.append({'text': 'User: ' + n_shot_support[i]['question'] + 
+                            '\nAssistant: ' + format_answer(n_shot_support[i]['answer'], dataset, query) + '\n'})
+        
+        for query_image_path in query_image_paths:
+            inputs.append({'image': query_image_path})
+        inputs.append({'text': 'User: ' + query_text + '\nAssistant:'})
+        
+        total_inputs = tokenizer.from_list_format(inputs)
+        inputs = tokenizer(total_inputs, return_tensors='pt')
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        input_token_len = inputs['input_ids'].shape[1]
+        predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif "qwen2.5-vl" in engine:
+        from qwen_vl_utils import process_vision_info
+        instruction = f'You are a helpful assistant. {task_instruction}'
+        messages = [
+           {"role": "system", "content": instruction},
+           {"role": "user", "content": []},
+        ]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                messages[-1]['content'].append({"type": "image", "image": blank_path})
+            messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
+            messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+        for query_image_path in query_image_paths:
+            messages[-1]['content'].append({"type": "image", "image": query_image_path})
+        messages[-1]['content'].append({"type": "text", "text": query_text})
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, _ = process_vision_info(messages)
+        inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+        output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        predicted_answers = output_text[0]
+    return predicted_answers
 
+def ICL_I2T_inference_w_blank_query_img(args, engine, dataset, model, tokenizer, query, 
+                      n_shot_support, data_path, processor, max_new_tokens):
+    blank_path = os.path.join(data_path, "blank.png")
+    if not os.path.exists(blank_path):
+        Image.new("RGB", (224, 224), (255, 255, 255)).save(blank_path)
+    task_instruction = get_task_instruction(args)
+    img_id = query['image']
+    query_images, query_image_paths = load_image(img_id, data_path)
+    query_text = query['question']
+    if 'qwen-vl' in engine:
+        inputs = [{'text': f'You are a helpful assistant. {task_instruction}'}]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                inputs.append({'image': blank_path})
+            inputs.append({'text': 'User: ' + n_shot_support[i]['question'] + 
+                            '\nAssistant: ' + format_answer(n_shot_support[i]['answer'], dataset, query) + '\n'})
+        
+        for query_image_path in query_image_paths:
+            inputs.append({'image': blank_path})
+        inputs.append({'text': 'User: ' + query_text + '\nAssistant:'})
+        
+        total_inputs = tokenizer.from_list_format(inputs)
+        inputs = tokenizer(total_inputs, return_tensors='pt')
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        input_token_len = inputs['input_ids'].shape[1]
+        predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif "qwen2.5-vl" in engine:
+        from qwen_vl_utils import process_vision_info
+        instruction = f'You are a helpful assistant. {task_instruction}'
+        messages = [
+           {"role": "system", "content": instruction},
+           {"role": "user", "content": []},
+        ]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                messages[-1]['content'].append({"type": "image", "image": blank_path})
+            messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
+            messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+        for query_image_path in query_image_paths:
+            messages[-1]['content'].append({"type": "image", "image": blank_path})
+        messages[-1]['content'].append({"type": "text", "text": query_text})
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, _ = process_vision_info(messages)
+        inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+        output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        predicted_answers = output_text[0]
+    return predicted_answers
+    
+    
 def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query, 
                       n_shot_support, data_path, processor, max_new_tokens):
     task_instruction = get_task_instruction(args)
@@ -358,6 +466,29 @@ def ICL_I2T_inference_wo_img(args, engine, dataset, model, tokenizer, query,
             pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
         input_token_len = inputs['input_ids'].shape[1]
         predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif "qwen2.5-vl" in engine:
+        from qwen_vl_utils import process_vision_info
+        instruction = f'You are a helpful assistant. {task_instruction}'
+        messages = [
+           {"role": "system", "content": instruction},
+           {"role": "user", "content": []},
+        ]
+        for i in range(len(n_shot_support)):
+            messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
+            messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+        for query_image_path in query_image_paths:
+            messages[-1]['content'].append({"type": "image", "image": query_image_path})
+        messages[-1]['content'].append({"type": "text", "text": query_text})
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, _ = process_vision_info(messages)
+        inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+        output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        predicted_answers = output_text[0]
+        
     elif 'phi-3' in engine:
         images = []
         img_idx = 1
@@ -444,6 +575,28 @@ def ICL_I2T_inference_wo_q_img(args, engine, dataset, model, tokenizer, query,
             pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
         input_token_len = inputs['input_ids'].shape[1]
         predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif "qwen2.5-vl" in engine:
+        from qwen_vl_utils import process_vision_info
+        instruction = f'You are a helpful assistant. {task_instruction}'
+        messages = [
+           {"role": "system", "content": instruction},
+           {"role": "user", "content": []},
+        ]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
+            messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
+            messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+        messages[-1]['content'].append({"type": "text", "text": query_text})
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, _ = process_vision_info(messages)
+        inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+        output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        predicted_answers = output_text[0]
     elif 'phi-3' in engine:
         full_text_prompt = f"{task_instruction}\n"
         for shot in n_shot_support:
