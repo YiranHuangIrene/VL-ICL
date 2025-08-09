@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('--dataDir', default='./VL-ICL', type=str, help='Data directory.')
     parser.add_argument('--dataset', default='operator_induction', type=str, choices=['operator_induction', 'textocr', 'open_mi', 
                                                                              'clevr','operator_induction_interleaved', 'matching_mi',])
-    parser.add_argument("--engine", "-e", choices=["openflamingo", "otter-llama", "llava16-7b", "qwen-vl", "qwen-vl-chat", 'internlm-x2', 
+    parser.add_argument("--engine", "-e", choices=["openflamingo", "otter-llama", "llava16-7b", "qwen-vl", "qwen-vl-chat", "qwen2.5-vl-3b", "qwen2.5-vl-7b", 'internlm-x2', 
                                                    'emu2-chat', 'idefics-9b-instruct', 'idefics-80b-instruct', 'gpt4v', 'llava-onevision-7b',
                                                    'llava-onevision-0.5b', 'phi-3.5-vision'],
                         default=["llava16-7b"], nargs="+")

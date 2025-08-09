@@ -38,6 +38,31 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
             pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
         input_token_len = inputs['input_ids'].shape[1]
         predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
+    elif "qwen2.5-vl" in engine:
+        from qwen_vl_utils import process_vision_info
+        instruction = f'You are a helpful assistant. {task_instruction}'
+        messages = [
+           {"role": "system", "content": instruction},
+           {"role": "user", "content": []},
+        ]
+        for i in range(len(n_shot_support)):
+            for image_path in n_shot_support[i]['image']:
+                messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
+            messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
+            messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+        for query_image_path in query_image_paths:
+            messages[-1]['content'].append({"type": "image", "image": query_image_path})
+        messages[-1]['content'].append({"type": "text", "text": query_text})
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, _ = process_vision_info(messages)
+        inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+        inputs = inputs.to(model.device)
+        with torch.no_grad():
+            pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+        pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+        output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+        predicted_answers = output_text[0]
+        
     elif 'llava' in engine:
         from llava.conversation import conv_templates
         from llava.mm_utils import (

@@ -62,16 +62,17 @@ def load_i2t_model(engine, args=None):
         model = transformers.AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL", device_map="cuda", trust_remote_code=True).eval()
         model.generation_config = GenerationConfig.from_pretrained("Qwen/Qwen-VL", trust_remote_code=True)
         processor = None
-    elif engine == 'qwen2.5-vl-7B':
+    elif "qwen2.5-vl" in engine:
         from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
         from qwen_vl_utils import process_vision_info
+        model_id = "Qwen/Qwen2.5-VL-3B-Instruct" if "3B" in engine else "Qwen/Qwen2.5-VL-7B-Instruct"
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        "Qwen/Qwen2.5-VL-7B-Instruct",
+        model_id,
         torch_dtype=torch.bfloat16,
         attn_implementation=attn_implementation,
         device_map="auto",
     )
-        processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+        processor = AutoProcessor.from_pretrained(model_id)
         tokenizer = None
     
     elif engine == 'internlm-x2':
