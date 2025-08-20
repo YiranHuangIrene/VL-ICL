@@ -93,22 +93,23 @@ def get_task_instruction(args):
         if description == 'concise':
             instr = 'Induce the mathematical operator and calculate the result.'
         elif description == 'detailed':
-            instr = 'The image contains two digit numbers and a ? representing the mathematical operator. Induce the mathematical operator (addition, multiplication, minus) according to the results of the in-context examples and calculate the result.'
+            instr = 'The image contains two digit numbers and a ? representing the mathematical operator. Induce the mathematical operator (addition, multiplication, minus) according to the results of the in-context examples and calculate the result. Please directly answer with the result.'
     elif dataset == 'operator_induction_interleaved':
         if description == 'concise':
             instr = 'Induce the mathematical operator between the two images and calculate the result.'
         elif description == 'detailed':
-            instr = 'There are two input images, each representing a single digit number. Induce the mathematical operator (addition, multiplication, minus) that is applied between the two images according to the results of the in-context examples. Calculate the result for the new query images.'
+            instr = 'There are two input images, each representing a single digit number. Induce the mathematical operator (addition, multiplication, minus) that is applied between the two images according to the results of the in-context examples. Calculate the result for the new query images. Please directly answer with the result.'
     elif dataset == 'open_mi':
         if description == 'concise':
             instr = 'Answer the question with a single word or phase.'
         elif description == 'detailed':
-            instr = "Induce the concept from the in-context examples. Answer the question with a single word or phase."
+            # instr = "Induce the concept from the in-context examples. Answer the question with a single word or phase."
+            instr = "Induce the concept from the in-context examples. Respond only with the invented class name shown in the examples, not a description of the image. Use a single word or phrase exactly as given in the examples."
     elif dataset == 'clevr':
         if description == 'concise':
             instr = 'Find objects of the given type, induce what operation to use and calculate the result.'
         elif description == 'detailed':
-            instr = 'The image contains objects of different shapes, colors, sizes and materials. The question describes the attribute and its value. You need to find all objects within the image that satisfy the condition. You should induce what operation to use according to the results of the in-context examples and then calculate the result.'
+            instr = 'The image contains objects of different shapes, colors, sizes and materials. The question describes the attribute and its value. You need to find all objects within the image that satisfy the condition. You should induce what operation to use according to the results of the in-context examples and then calculate the result. Please directly answer with the calculated number.'
     elif dataset == 'matching_mi':
         if description == 'concise':
             instr = 'Determine the output for the new pair of images.'

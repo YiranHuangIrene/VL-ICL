@@ -17,9 +17,10 @@ def eval_scores(results, dataset, model=None, tokenizer=None, processor=None):
     return score
 
 def eval_scores_contain(results, dataset, model=None, tokenizer=None, processor=None):
-    if dataset in ['textocr', 'operator_induction', 'clevr', 'open_mi',
-                    'operator_induction_interleaved']:
+    if dataset in [ 'clevr']:
         score = exact_in_match(results, dataset)
+    elif dataset in ['textocr','open_mi','operator_induction', 'operator_induction_interleaved']:
+        score = exact_match(results, dataset)
     elif dataset == 'matching_mi':
         score = exact_yes_no(results)
     elif dataset == 'open_t2i_mi' or dataset == 'operator_induction_t2i' or dataset == 'fast_attr_t2i' or dataset == 'fast_count_t2i':
@@ -47,7 +48,7 @@ def exact_yes_no(results):
     avg_acc = np.average(acc)
     return avg_acc
 
-def exact_in_match(results):
+def exact_in_match(results, dataset):
     acc = []
     for result in results:
         prediction = result['prediction'].strip()
@@ -57,6 +58,13 @@ def exact_in_match(results):
             trunc_index = prediction.find('.')
         if trunc_index > 0:
             prediction = prediction[:trunc_index]
+        if 'operator_induction' in dataset or 'clevr_simple' in dataset:
+            # find the number
+            match = re.search(r'\d+', prediction)
+            if match:
+                prediction = match.group()
+            else:
+                prediction = ''
         if str(result['answer']).lower() in str(prediction).lower():
             acc.append(1)
         else:

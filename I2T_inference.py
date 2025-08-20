@@ -77,6 +77,10 @@ if __name__ == "__main__":
                 results_dir = f"{root_dir}/results/wo_img"
             elif args.wo_query_img:
                 results_dir = f"{root_dir}/results/wo_query_img"
+            elif args.w_blank_img:
+                results_dir = f"{root_dir}/results/w_blank_img"
+            elif args.w_blank_query_img:
+                results_dir = f"{root_dir}/results/w_blank_query_img"
             else:
                 results_dir = f"{root_dir}/results/w_img"
             os.makedirs(f"{results_dir}/{args.dataset}", exist_ok=True)

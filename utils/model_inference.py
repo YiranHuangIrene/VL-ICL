@@ -583,8 +583,6 @@ def ICL_I2T_inference_wo_q_img(args, engine, dataset, model, tokenizer, query,
            {"role": "user", "content": []},
         ]
         for i in range(len(n_shot_support)):
-            for image_path in n_shot_support[i]['image']:
-                messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
             messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
             messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
         messages[-1]['content'].append({"type": "text", "text": query_text})
