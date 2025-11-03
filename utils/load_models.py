@@ -65,7 +65,7 @@ def load_i2t_model(engine, args=None):
     elif "qwen2.5-vl" in engine:
         from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
         from qwen_vl_utils import process_vision_info
-        model_id = "Qwen/Qwen2.5-VL-3B-Instruct" if "3B" in engine else "Qwen/Qwen2.5-VL-7B-Instruct"
+        model_id = "Qwen/Qwen2.5-VL-3B-Instruct" if "3b" in engine else "Qwen/Qwen2.5-VL-7B-Instruct"
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         model_id,
         torch_dtype=torch.bfloat16,
@@ -74,6 +74,8 @@ def load_i2t_model(engine, args=None):
     )
         processor = AutoProcessor.from_pretrained(model_id)
         tokenizer = None
+        print("model structure:")
+        print(model)
     
     elif engine == 'internlm-x2':
         model = transformers.AutoModel.from_pretrained('internlm/internlm-xcomposer2-7b', trust_remote_code=True, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, device_map="cuda")
