@@ -55,14 +55,15 @@ def load_data(args):
     dataDir = args.dataDir
     query_file = os.path.join(dataDir, args.dataset, 'query.json')
     support_file = os.path.join(dataDir, args.dataset, 'support.json')
-
+    meta_file = os.path.join(dataDir, args.dataset, 'meta.json')
+    with open(meta_file, 'r') as f:
+        meta_data = json.load(f)
     with open(query_file, 'r') as f:
         query_meta = json.load(f)
     with open(support_file, 'r') as f:
         support_meta = json.load(f)
 
-    return query_meta, support_meta
-    
+    return query_meta, support_meta, meta_data
 
 def load_text_data(args):
     dataset = args.dataset
