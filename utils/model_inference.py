@@ -11,6 +11,7 @@ import time
 from PIL import Image
 from .ICL_utils import get_task_instruction, format_answer
 from .utils import load_image, encode_image
+from tqdm import tqdm
 
 def generate_img_caption(engine, model,dataset, data_path, meta_data, processor, max_new_tokens=100):
     if dataset == 'open_mi':
@@ -18,24 +19,26 @@ def generate_img_caption(engine, model,dataset, data_path, meta_data, processor,
         for img_path, v in meta_data.items():
             filenames.append(os.path.join(data_path, img_path))
         if "qwen2.5-vl" in engine:
+            print(f"Generating captions for using Qwen2.5-VL...")
             from qwen_vl_utils import process_vision_info
             messages = []
             captions = []
             for filename in filenames:
                 messages.append([{"role": "user",
-                                  "content": [{"type": "image", "image": filename}, {"type": "text", "text": "List all the objects in this image."}]
+                                  "content": [{"type": "image", "image": filename}, {"type": "text", "text": "Describe the image and list all the objects in this image."}]
                                   }])
-            for msg in messages:
+            messages_chunks = [messages[i:i+10] for i in range(0, len(messages), 10)]
+            for msg in tqdm(messages_chunks):
                 text = processor.apply_chat_template(msg, tokenize=False, add_generation_prompt=True)
                 image_inputs, _ = process_vision_info(msg)
-                inputs = processor(text=[text], images=image_inputs, return_tensors="pt", padding=True)
+                inputs = processor(text=text, images=image_inputs, return_tensors="pt", padding=True, padding_side="left")
                 inputs = inputs.to(model.device)
                 with torch.no_grad():
                     pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
                 pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
                 output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-                predicted_answers = output_text[0]
-                captions.append(predicted_answers)
+                print(output_text)
+                captions.append(output_text)
             return captions
         
 def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query, 
