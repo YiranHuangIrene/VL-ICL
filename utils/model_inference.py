@@ -42,7 +42,7 @@ def generate_img_caption(engine, model,dataset, data_path, meta_data, processor,
             return captions
         
 def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query, 
-                      n_shot_support, data_path, processor, max_new_tokens, blank_demo_img=False, blank_query_img=False, rule_only=False, demo_desc=False, query_desc=False):
+                      n_shot_support, data_path, processor, max_new_tokens, blank_demo_img=False, blank_query_img=False, rule_given=False, demo_desc=False, query_desc=False, demo_img_desc=False, query_img_desc=False, demo_img_desc_after_labels=False):
     blank_path = os.path.join(data_path, "blank.png")
     if not os.path.exists(blank_path):
         Image.new("RGB", (224, 224), (255, 255, 255)).save(blank_path)
@@ -77,7 +77,7 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
         predicted_answers = tokenizer.decode(pred[:, input_token_len:].cpu()[0], skip_special_tokens=True)
     elif "qwen2.5-vl" in engine:
         from qwen_vl_utils import process_vision_info
-        if rule_only:
+        if rule_given:
             if args.dataset == 'open_mi':
                 mappings = []
                 for i in range(len(n_shot_support)):
@@ -102,14 +102,22 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
                         messages[-1]['content'].append({"type": "image", "image": blank_path})
                     elif demo_desc:
                         messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
+                    elif demo_img_desc:
+                         messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
+                         messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
                     else:   
                         messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
                 messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
                 messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+                if demo_img_desc_after_labels:
+                    messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
         for query_image_path in query_image_paths:
             if blank_query_img:
                 messages[-1]['content'].append({"type": "image", "image": blank_path})
             elif query_desc:
+                messages[-1]['content'].append({"type": "text", "text": query['GT_caption']})
+            elif query_img_desc:
+                messages[-1]['content'].append({"type": "image", "image": query_image_path})
                 messages[-1]['content'].append({"type": "text", "text": query['GT_caption']})
             else:
                 messages[-1]['content'].append({"type": "image", "image": query_image_path})
