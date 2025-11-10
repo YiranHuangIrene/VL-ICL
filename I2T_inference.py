@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument('--demo_desc_query_img', action='store_true', help='Replace the demo images with their descriptions -> Shots(descriptions + question + answer) + query (image + question)')
     parser.add_argument('--demo_desc_query_desc', action='store_true', help='Replace the demo images with their descriptions, replace the query image with its description -> Shots(descriptions + question + answer) + query (description + question)')
     parser.add_argument('--perception', action='store_true', help='Generate image description for both query and support images.')
+    parser.add_argument('--perception_classification', action='store_true', help='Generate image classification for both query and support images.')
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
     return parser.parse_args()
 
@@ -42,11 +43,18 @@ def generate_img_caption(args,engine,model, processor, meta_data):
     captions = model_inference.generate_img_caption(engine=engine, model=model, dataset=args.dataset, data_path=args.dataDir, meta_data=meta_data, processor=processor, max_new_tokens=args.max_new_tokens)
     return captions
 
+def generate_img_classification(engine, dataset, model, tokenizer, 
+                      all_shots, data_path, processor, max_new_tokens):
+    print(f"Generating classifications for {len(meta_data)} images...")
+    classifications = model_inference.generate_perception_classification(engine, dataset, model, tokenizer, 
+                      all_shots, data_path, processor, max_new_tokens)
+    return classifications
+
 def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, engine, n_shot):
     data_path = args.dataDir
     results = []
     max_new_tokens = args.max_new_tokens
-
+    output = {}
     for query in tqdm(query_meta):
         
         n_shot_support = ICL_utils.select_demonstration(support_meta, n_shot, args.dataset, query=query)
@@ -88,8 +96,13 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
             assert args.w_img, "Please specify the prompt type."
             predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
                                                     n_shot_support, data_path, processor, max_new_tokens)
-        query['prediction'] = predicted_answer
-        results.append(query)
+        for entry in ['id', 'image', 'question', 'answer', 'real_name']:
+            output[entry] = query[entry]
+        output['prediction'] = predicted_answer
+        output['support'] = n_shot_support
+        # query['prediction'] = predicted_answer
+        
+        results.append(output)
 
     return results
     
@@ -111,6 +124,14 @@ if __name__ == "__main__":
             with open(f"{results_dir}/{args.dataset}/{engine}/perception.json", "w") as f:
                 json.dump(results_dict, f, indent=4)
             print(f"Results saved to {results_dir}/{args.dataset}/{engine}/perception.json")
+        elif args.perception_classification:
+            results_dict = generate_img_classification(engine, args.dataset, model, tokenizer, meta_data, args.dataDir, processor, args.max_new_tokens)
+            root_dir = os.path.dirname(os.path.abspath(__file__))
+            results_dir = f"{root_dir}/results/perception_classification"
+            os.makedirs(f"{results_dir}/{args.dataset}/{engine}", exist_ok=True)
+            with open(f"{results_dir}/{args.dataset}/{engine}/perception_classification.json", "w") as f:
+                json.dump(results_dict, f, indent=4)
+            print(f"Results saved to {results_dir}/{args.dataset}/{engine}/perception_classification.json")
         else:
             for shot in args.n_shot:
                 results_dict = eval_questions(args, query_meta, support_meta, model, tokenizer, processor, engine, int(shot))

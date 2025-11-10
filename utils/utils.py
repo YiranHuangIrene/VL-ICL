@@ -56,6 +56,8 @@ def load_data(args):
     query_file = os.path.join(dataDir, args.dataset, 'query.json')
     support_file = os.path.join(dataDir, args.dataset, 'support.json')
     meta_file = os.path.join(dataDir, args.dataset, 'meta.json')
+    if args.perception_classification:
+        meta_file = os.path.join(dataDir, args.dataset, 'all_shots.json')
     with open(meta_file, 'r') as f:
         meta_data = json.load(f)
     with open(query_file, 'r') as f:

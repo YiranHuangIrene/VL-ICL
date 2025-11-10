@@ -16,7 +16,7 @@ from tqdm import tqdm
 def generate_img_caption(engine, model,dataset, data_path, meta_data, processor, max_new_tokens=100):
     if dataset == 'open_mi':
         filenames = []
-        for img_path, v in meta_data.items():
+        for img_path, v in meta_data['mapping'].items():
             filenames.append(os.path.join(data_path, img_path))
         if "qwen2.5-vl" in engine:
             print(f"Generating captions for using Qwen2.5-VL...")
@@ -38,9 +38,60 @@ def generate_img_caption(engine, model,dataset, data_path, meta_data, processor,
                 pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
                 output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
                 print(output_text)
-                captions.append(output_text)
+                captions.extend(output_text)
             return captions
         
+def generate_perception_classification(engine, dataset, model, tokenizer, 
+                      all_shots, data_path, processor, max_new_tokens):
+    if dataset == 'open_mi':
+        classification_results = []
+        for shot in tqdm(all_shots):
+            query = shot['query']
+            query_img = query['image']
+            query_img_path = os.path.join(data_path, query_img[0])
+            supports = shot['support']['5-shot']
+            classes = query['classes']
+            img_paths = []
+            support_img_paths = []
+            img_paths.append(query_img_path)
+            for support in supports:
+                support_img = support['image'][0]
+                support_img_paths.append(support_img)
+                support_img_path = os.path.join(data_path, support_img)
+                img_paths.append(support_img_path)
+            instruction = f"You are a helpful assistant. Classify the image into one of the following categories: {classes[0]}, {classes[1]}. Please answer directly with the category name."
+            messages = []
+            if "qwen2.5-vl" in engine:
+                from qwen_vl_utils import process_vision_info
+                for img_path in img_paths:
+                    message = [
+                        {"role": "user", 
+                        "content": [
+                            {"type": "text", 
+                            "text": instruction },
+                            {"type": "image", "image": img_path}
+                                ]}]
+                    messages.append(message)
+                text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                image_inputs, _ = process_vision_info(messages)
+                inputs = processor(text=text, images=image_inputs, return_tensors="pt", padding=True, padding_side="left")
+                inputs = inputs.to(model.device)
+                with torch.no_grad():
+                    pred = model.generate(**inputs, do_sample=False, max_new_tokens=max_new_tokens, min_new_tokens=1)
+                pred_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, pred)]
+                output_text = processor.batch_decode(pred_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+                predicted_answers = output_text
+                print(predicted_answers)
+                classification_results.append({
+                    "query_image": query_img,
+                    "query_real_name": query['real_name'],
+                    "predicted_query_answer": predicted_answers[0],
+                    "support_images": support_img_paths,
+                    "support_real_names": [support['real_name'] for support in supports],
+                    "predicted_support_answers": predicted_answers[1:],
+                })
+    return classification_results
+
 def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query, 
                       n_shot_support, data_path, processor, max_new_tokens, blank_demo_img=False, blank_query_img=False, rule_given=False, demo_desc=False, query_desc=False, demo_img_desc=False, query_img_desc=False, demo_img_desc_after_labels=False):
     blank_path = os.path.join(data_path, "blank.png")
