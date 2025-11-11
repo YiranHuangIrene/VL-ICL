@@ -67,7 +67,7 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
                                                                 n_shot_support, data_path, processor, max_new_tokens, rule_given=True, query_desc=True)
         elif args.rule_demo:
             predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
-                                                                n_shot_support, data_path, processor, max_new_tokens, task_description='rule')
+                                                                n_shot_support, data_path, processor, max_new_tokens)
         elif args.w_blank_demo_img:
             predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
                                                                     n_shot_support, data_path, processor, max_new_tokens, blank_demo_img=True)
@@ -96,13 +96,13 @@ def eval_questions(args, query_meta, support_meta, model, tokenizer, processor, 
             assert args.w_img, "Please specify the prompt type."
             predicted_answer = model_inference.ICL_I2T_inference(args, engine, args.dataset, model, tokenizer, query, 
                                                     n_shot_support, data_path, processor, max_new_tokens)
-        for entry in ['id', 'image', 'question', 'answer', 'real_name']:
-            output[entry] = query[entry]
-        output['prediction'] = predicted_answer
-        output['support'] = n_shot_support
-        # query['prediction'] = predicted_answer
+        # for entry in ['id', 'image', 'question', 'answer', 'real_name']:
+        #     output[entry] = query[entry]
+        # output['prediction'] = predicted_answer
+        # output['support'] = n_shot_support
+        query['prediction'] = predicted_answer
         
-        results.append(output)
+        results.append(query)
 
     return results
     

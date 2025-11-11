@@ -139,40 +139,38 @@ def ICL_I2T_inference(args, engine, dataset, model, tokenizer, query,
             instruction = f'You are a helpful assistant. {rule}'
             messages = [
             {"role": "system", "content": instruction},
-            {"role": "user", "content": []},
             ]
         else:
             instruction = f'You are a helpful assistant. {task_instruction}'
             messages = [
             {"role": "system", "content": instruction},
-            {"role": "user", "content": []},
             ]
             for i in range(len(n_shot_support)):
                 for image_path in n_shot_support[i]['image']:
                     if blank_demo_img:
-                        messages[-1]['content'].append({"type": "image", "image": blank_path})
+                        messages.append({"role":"user", "content": [{"type": "image", "image": blank_path}]})
                     elif demo_desc:
-                        messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
+                        messages.append({"role":"user", "content": [{"type": "text", "text": f"This is an image of a {n_shot_support[i]['real_name']}."}]})
                     elif demo_img_desc:
-                         messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
-                         messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
+                        messages.append({"role":"user", "content": [{"type": "image", "image": os.path.join(data_path, image_path)}]})
+                        messages.append({"role":"user", "content": [{"type": "text", "text": f"This is an image of a {n_shot_support[i]['real_name']}."}]})
                     else:   
-                        messages[-1]['content'].append({"type": "image", "image": os.path.join(data_path, image_path)})
-                messages[-1]['content'].append({"type": "text", "text": n_shot_support[i]['question']})
-                messages[-1]['content'].append({"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)})
+                        messages.append({"role":"user", "content": [{"type": "image", "image": os.path.join(data_path, image_path)}]})
+                messages.append({"role":"user", "content": [{"type": "text", "text": n_shot_support[i]['question']}]})
+                messages.append({"role":"assistant", "content": [{"type": "text", "text": format_answer(n_shot_support[i]['answer'], dataset, query)}]})
                 if demo_img_desc_after_labels:
-                    messages[-1]['content'].append({"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."})
+                    messages.append({"role":"user", "content": [{"type": "text", "text": f"This is a {n_shot_support[i]['real_name']}."}]})
         for query_image_path in query_image_paths:
             if blank_query_img:
-                messages[-1]['content'].append({"type": "image", "image": blank_path})
+                messages.append({"role":"user", "content": [{"type": "image", "image": blank_path}]})
             elif query_desc:
-                messages[-1]['content'].append({"type": "text", "text": query['GT_caption']})
+                messages.append({"role":"user", "content": [{"type": "text", "text": f"This is an image of a {query['real_name']}."}]})
             elif query_img_desc:
-                messages[-1]['content'].append({"type": "image", "image": query_image_path})
-                messages[-1]['content'].append({"type": "text", "text": query['GT_caption']})
+                messages.append({"role":"user", "content": [{"type": "image", "image": query_image_path}]})
+                messages.append({"role":"user", "content": [{"type": "text", "text": f"This is an image of a {query['real_name']}."}]})
             else:
-                messages[-1]['content'].append({"type": "image", "image": query_image_path})
-        messages[-1]['content'].append({"type": "text", "text": query_text})
+                messages.append({"role":"user", "content": [{"type": "image", "image": query_image_path}]})
+        messages.append({"role":"user", "content": [{"type": "text", "text": query_text}]})
         print(messages)
         text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, _ = process_vision_info(messages)
